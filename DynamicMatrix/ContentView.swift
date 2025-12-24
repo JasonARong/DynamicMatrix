@@ -13,10 +13,17 @@ struct ContentView: View {
     
     private let matrixSpaceName = "matrixSpace"
     
-    private var matrixShiftBinding: Binding<Double> {
+    private var matrixShiftXBinding: Binding<Double> {
         Binding(
-            get: { Double(viewModel.matrixShiftValue) },
-            set: { viewModel.matrixShiftValue = CGFloat($0) }
+            get: { Double(viewModel.matrixShiftValueX) },
+            set: { viewModel.matrixShiftValueX = CGFloat($0) }
+        )
+    }
+
+    private var matrixShiftYBinding: Binding<Double> {
+        Binding(
+            get: { Double(viewModel.matrixShiftValueY) },
+            set: { viewModel.matrixShiftValueY = CGFloat($0) }
         )
     }
     
@@ -31,12 +38,23 @@ struct ContentView: View {
                 ForEach(viewModel.circles) { circle in
                     let attraction = viewModel.attractionOffset(for: circle.position)
                     let matrixShift = viewModel.matrixShiftOffset(for: circle.targetPosition)
+                    let touchOpacity = viewModel.attractionOpacity(for: circle.position)
+                    let matrixOpacity = viewModel.matrixShiftOpacity(for: circle.targetPosition)
+                    // Combine two independent opacity boosts, bounded to [base, 1].
+                    let opacity = max(touchOpacity, matrixOpacity)
+                    let highlightOpacity = viewModel.matrixShiftHighlightOpacity(for: circle.targetPosition)
                     let combinedOffset = CGSize(
                         width: attraction.width + matrixShift.width,
                         height: attraction.height + matrixShift.height
                     )
                     Circle()
-                        .fill(Color(hex: "#A6ADB5"))
+                        .fill(Color(hex: "#FFFFFF"))
+                        .opacity(opacity)
+                        .overlay(
+                            Circle()
+                                .fill(Color(hex: "#7FDD60"))
+                                .opacity(highlightOpacity)
+                        )
                         .frame(width: viewModel.circleSize, height: viewModel.circleSize)
                         .position(circle.position)
                         .offset(combinedOffset)
@@ -55,7 +73,15 @@ struct ContentView: View {
                                 dampingFraction: viewModel.matrixShiftSettings.springDampingFraction,
                                 blendDuration: viewModel.matrixShiftSettings.springBlendDuration
                             ),
-                            value: viewModel.matrixShiftValue
+                            value: viewModel.matrixShiftValueX
+                        )
+                        .animation(
+                            .interactiveSpring(
+                                response: viewModel.matrixShiftSettings.springResponse,
+                                dampingFraction: viewModel.matrixShiftSettings.springDampingFraction,
+                                blendDuration: viewModel.matrixShiftSettings.springBlendDuration
+                            ),
+                            value: viewModel.matrixShiftValueY
                         )
                         .allowsHitTesting(false)
                 }
@@ -97,13 +123,26 @@ struct ContentView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.white.opacity(0.85))
                             
-                            Slider(value: matrixShiftBinding, in: -1...1)
+                            // Horizontal shift
+                            Slider(value: matrixShiftXBinding, in: -1...1)
                                 .tint(.white)
                             
                             HStack {
                                 Text("Left")
                                 Spacer()
                                 Text("Right")
+                            }
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.65))
+
+                            // Vertical shift
+                            Slider(value: matrixShiftYBinding, in: -1...1)
+                                .tint(.white)
+
+                            HStack {
+                                Text("Up")
+                                Spacer()
+                                Text("Down")
                             }
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.65))
